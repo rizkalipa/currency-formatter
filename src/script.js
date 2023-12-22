@@ -1,3 +1,14 @@
+$.fn.onClassChange = function(cb) {
+    return $(this).each((_, el) => {
+        new MutationObserver(mutations => {
+            mutations.forEach(mutation => cb && cb(mutation.target, mutation.target.className));
+        }).observe(el, {
+            attributes: true,
+            attributeFilter: ['class', 'disabled', 'style']
+        });
+    });
+}
+
 $.fn.currency = function(options = {}) {
     var fields = this
 
@@ -6,18 +17,12 @@ $.fn.currency = function(options = {}) {
         let inputVal = input.val()
         let inputId = `${input.attr('id') ? input.attr('id') + '-' : 'field-'}${Math.floor(100000 + Math.random() * 900000)}`
         let maskInputId = `currency-input_${inputId}`
-        let maskInput = `
-            <input 
-                id="${maskInputId}"
-                class="form-control form-control-sm currency-input-mask" 
-                value="${currencyFormat(inputVal)}">
-        `
 
-        if (!input.siblings('.currency-input-mask').length) {
-            input.attr('data-currency-input-id', maskInputId)
-            input.css({'opacity': '0', 'position': 'absolute', 'z-index': '-10'})
-            input.parent().append(maskInput)
-        }
+        initializeInput(inputVal)
+
+        input.onClassChange(function (e) {
+            initializeInput(input.val())
+        })
 
         $(`#${maskInputId}`).focus(function (e) {
             let maskInputVal = currencyFormat($(this).val(), true)
@@ -31,6 +36,8 @@ $.fn.currency = function(options = {}) {
             $(this)
                 .val(new Intl.NumberFormat("id-ID", { trailingZeroDisplay: 'stripIfInteger' })
                 .format(currencyFormat(maskInputVal, true)))
+
+            changeParentValue(currencyFormat(maskInputVal, true), 'keyup')
         })
 
         $(`#${maskInputId}`).on('blur', input, function (e) {
@@ -43,16 +50,26 @@ $.fn.currency = function(options = {}) {
             $(`#${maskInputId}`).val(currencyFormat($(this).val()))
         })
 
-        function changeParentValue(value = 0) {
-            input.val(value)
+        function changeParentValue(value = 0, event = 'change') {
+            input.val(value !== '0' ? value : '').trigger(event)
+        }
+
+        function initializeInput(inputVal = 0) {
+            let maskInput = `
+                <input
+                    id="${maskInputId}"
+                    class="currency-input-mask ${input.attr('class')}"
+                    value="${currencyFormat(inputVal)}"
+                    ${input.is(':disabled') ? 'disabled' : ''}
+                >
+            `
+
+            input.attr('data-currency-input-id', maskInputId)
+            input.css({'opacity': '0', 'position': 'absolute', 'z-index': '-10', 'left': '0'})
+
+            if (input.siblings('.currency-input-mask').length) input.parent().find('.currency-input-mask').remove()
+
+            input.parent().append(maskInput)
         }
     })
-}
-
-function currencyFormat(number = 0, isReversed = false) {
-    let formatter = new Intl.NumberFormat("id-ID", {style: 'currency', currency: 'IDR'})
-
-    if (isReversed) return number.replace(',00', '').replace(/\D/g,'')
-
-    return formatter.format(number)
 }
