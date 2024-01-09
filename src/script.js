@@ -73,3 +73,11 @@ $.fn.currency = function(options = {}) {
         }
     })
 }
+
+function currencyFormat(number = 0, isReversed = false) {
+    let formatter = new Intl.NumberFormat("id-ID", {style: 'currency', currency: 'IDR'})
+
+    if (isReversed) return number.replace(',00', '').replace(/\D/g,'')
+
+    return formatter.format(number)
+}
